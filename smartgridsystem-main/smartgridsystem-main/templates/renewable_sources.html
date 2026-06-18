@@ -1,0 +1,389 @@
+{% extends "layout.html" %}
+
+{% block additional_head %}
+<style>
+    .source-card {
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        text-align: center;
+        height: 100%;
+    }
+    .source-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+    .source-value {
+        font-size: 1.6rem;
+        font-weight: 500;
+    }
+    .source-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.8;
+    }
+    .util-bar {
+        height: 5px;
+        border-radius: 3px;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2><i class="fas fa-leaf me-2"></i> Renewable Energy Sources</h2>
+        <p class="text-secondary">Monitor and analyse renewable energy generation and capacity</p>
+    </div>
+    <div class="col-md-6 text-md-end">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" onclick="loadAll()">
+                <i class="fas fa-sync-alt me-1"></i> Refresh Data
+            </button>
+        </div>
+        <div class="mt-2 text-secondary">
+            <small id="last-updated">Loading...</small>
+        </div>
+    </div>
+</div>
+
+<!-- Source Cards -->
+<div class="row mb-4" id="source-cards-row">
+    <div class="col-12 text-center py-4 text-secondary" id="cards-loading">
+        <div class="spinner-border spinner-border-sm me-2"></div> Loading source data...
+    </div>
+</div>
+
+<!-- Generation vs Capacity + Overview -->
+<div class="row mb-4">
+    <div class="col-md-8 mb-3">
+        <div class="dashboard-card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i> Current Generation vs Capacity</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="genCapChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="dashboard-card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i> Generation Overview</h5>
+            </div>
+            <div class="card-body" id="gen-overview">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-secondary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trend + Source Mix -->
+<div class="row mb-4">
+    <div class="col-md-8 mb-3">
+        <div class="dashboard-card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i> Generation Trend</h5>
+                <div class="d-flex gap-2">
+                    <select class="form-select form-select-sm bg-dark text-light border-secondary" id="trend-source" onchange="loadTrends()">
+                        <option value="all">All Sources</option>
+                        <option value="solar">Solar</option>
+                        <option value="wind">Wind</option>
+                        <option value="hydro">Hydro</option>
+                        <option value="biomass">Biomass</option>
+                        <option value="others">Others</option>
+                    </select>
+                    <select class="form-select form-select-sm bg-dark text-light border-secondary" id="trend-days" onchange="loadTrends()">
+                        <option value="7">7 Days</option>
+                        <option value="14">14 Days</option>
+                        <option value="30">30 Days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="dashboard-card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i> Source Mix</h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <canvas id="mixChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Regional Breakdown -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-map-marked-alt me-2"></i> Regional Renewable Breakdown</h5>
+                <select class="form-select form-select-sm bg-dark text-light border-secondary w-auto"
+                        id="region-filter" onchange="loadRegional()">
+                    <option value="all">All Regions</option>
+                    <option value="northern">Northern</option>
+                    <option value="western">Western</option>
+                    <option value="southern">Southern</option>
+                    <option value="eastern">Eastern</option>
+                    <option value="northeastern">Northeastern</option>
+                </select>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless table-grid">
+                        <thead>
+                            <tr>
+                                <th>Region</th>
+                                <th>Solar (MW)</th>
+                                <th>Wind (MW)</th>
+                                <th>Hydro (MW)</th>
+                                <th>Biomass (MW)</th>
+                                <th>Others (MW)</th>
+                                <th>Total (MW)</th>
+                                <th>Grid Share %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="regional-tbody">
+                            <tr>
+                                <td colspan="8" class="text-center">
+                                    <div class="spinner-border text-secondary spinner-border-sm"></div>
+                                    <span class="ms-2 text-secondary">Loading regional data...</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const SOURCE_META = {
+    solar:   { label: "Solar",   color: "#f59e0b", icon: "☀️"  },
+    wind:    { label: "Wind",    color: "#06b6d4", icon: "💨"  },
+    hydro:   { label: "Hydro",   color: "#6366f1", icon: "🌊"  },
+    biomass: { label: "Biomass", color: "#22c55e", icon: "🌱"  },
+    others:  { label: "Others",  color: "#94a3b8", icon: "⚙️"  },
+};
+
+let genCapChartInst = null;
+let trendChartInst  = null;
+let mixChartInst    = null;
+
+const fmt = n => Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+const pct = n => `${Number(n).toFixed(1)}%`;
+
+async function loadSummary() {
+    try {
+        const res  = await fetch("/api/renewable/summary");
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        const d = json.data;
+        document.getElementById("last-updated").textContent =
+            "Last updated: " + new Date(d.timestamp).toLocaleTimeString();
+        renderSourceCards(d);
+        renderGenOverview(d);
+        renderGenCapChart(d);
+        renderMixChart(d);
+    } catch (err) {
+        console.error("Summary load failed:", err);
+        const el = document.getElementById("cards-loading");
+        if (el) el.textContent = "Failed to load data.";
+    }
+}
+
+function renderSourceCards(d) {
+    const row     = document.getElementById("source-cards-row");
+    const loading = document.getElementById("cards-loading");
+    if (loading) loading.remove();
+
+    let html = "";
+    for (const [src, meta] of Object.entries(SOURCE_META)) {
+        const capVal  = d.capacity[src]  ?? 0;
+        const genVal  = d.current_generation[src] ?? 0;
+        const utilVal = d.utilisation_by_source[src] ?? 0;
+        const barCol  = utilVal > 80 ? "#22c55e" : utilVal > 50 ? "#f59e0b" : "#6366f1";
+        html += `
+        <div class="col-sm-6 col-xl mb-3" style="min-width:160px">
+            <div class="dashboard-card source-card">
+                <div class="source-icon">${meta.icon}</div>
+                <div class="source-label">${meta.label} Capacity</div>
+                <div class="source-value mt-1">${fmt(capVal)} <small class="text-secondary fs-6">MW</small></div>
+                <div class="text-secondary small">Gen: ${fmt(genVal)} MW</div>
+                <div class="util-bar bg-secondary">
+                    <div style="width:${Math.min(utilVal,100)}%;height:5px;border-radius:3px;background:${barCol}"></div>
+                </div>
+                <div class="text-secondary small mt-1">Utilisation: ${pct(utilVal)}</div>
+            </div>
+        </div>`;
+    }
+    row.insertAdjacentHTML("beforeend", html);
+}
+
+function renderGenOverview(d) {
+    document.getElementById("gen-overview").innerHTML = `
+        <div class="text-center mb-3">
+            <div class="h2 text-success fw-bold">${fmt(d.total_generation_mw)}</div>
+            <div class="text-secondary small">Total Renewable Generation (MW)</div>
+        </div>
+        <hr class="border-secondary">
+        <div class="d-flex justify-content-between py-2 border-bottom border-secondary">
+            <span class="text-secondary">Capacity Utilisation</span>
+            <span class="fw-semibold">${pct(d.overall_utilisation_pct)}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom border-secondary">
+            <span class="text-secondary">CO&#8322; Avoided / hr</span>
+            <span class="fw-semibold text-success">${fmt(d.co2_avoided_per_hour_tonnes)} t</span>
+        </div>
+        <div class="d-flex justify-content-between py-2 border-bottom border-secondary">
+            <span class="text-secondary">Highest Source</span>
+            <span class="fw-semibold text-capitalize">${d.highest_source}</span>
+        </div>
+        <div class="d-flex justify-content-between py-2">
+            <span class="text-secondary">Total Capacity</span>
+            <span class="fw-semibold">${fmt(d.total_capacity_mw)} MW</span>
+        </div>`;
+}
+
+function renderGenCapChart(d) {
+    const labels  = Object.keys(SOURCE_META).map(s => SOURCE_META[s].label);
+    const capData = Object.keys(SOURCE_META).map(s => d.capacity[s] ?? 0);
+    const genData = Object.keys(SOURCE_META).map(s => d.current_generation[s] ?? 0);
+    const colors  = Object.keys(SOURCE_META).map(s => SOURCE_META[s].color);
+    if (genCapChartInst) genCapChartInst.destroy();
+    genCapChartInst = new Chart(document.getElementById("genCapChart"), {
+        type: "bar",
+        data: {
+            labels,
+            datasets: [
+                { label: "Capacity (MW)",   data: capData, backgroundColor: colors.map(c => c + "40"), borderColor: colors, borderWidth: 2 },
+                { label: "Generation (MW)", data: genData, backgroundColor: colors.map(c => c + "cc"), borderColor: colors, borderWidth: 2 },
+            ],
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: "top", labels: { color: "#adb5bd" } } },
+            scales: {
+                x: { ticks: { color: "#adb5bd" }, grid: { color: "#343a40" } },
+                y: { beginAtZero: true, ticks: { color: "#adb5bd", callback: v => fmt(v) }, grid: { color: "#343a40" } },
+            },
+        },
+    });
+}
+
+function renderMixChart(d) {
+    const labels = Object.keys(SOURCE_META).map(s => SOURCE_META[s].label);
+    const values = Object.keys(SOURCE_META).map(s => d.current_generation[s] ?? 0);
+    const colors = Object.keys(SOURCE_META).map(s => SOURCE_META[s].color);
+    if (mixChartInst) mixChartInst.destroy();
+    mixChartInst = new Chart(document.getElementById("mixChart"), {
+        type: "doughnut",
+        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2 }] },
+        options: {
+            responsive: true,
+            cutout: "65%",
+            plugins: {
+                legend: { position: "bottom", labels: { color: "#adb5bd" } },
+                tooltip: { callbacks: { label: ctx => ` ${fmt(ctx.parsed)} MW` } },
+            },
+        },
+    });
+}
+
+async function loadTrends() {
+    const source = document.getElementById("trend-source").value;
+    const days   = document.getElementById("trend-days").value;
+    try {
+        const res  = await fetch(`/api/renewable/trends?source=${source}&days=${days}`);
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        const trendData = json.data.trend_data;
+        const labels    = trendData.map(t => t.date);
+        const srcSet    = new Set();
+        trendData.forEach(t => Object.keys(t.generation).forEach(k => srcSet.add(k)));
+        const datasets = [...srcSet].map(src => ({
+            label:           SOURCE_META[src]?.label ?? src,
+            data:            trendData.map(t => t.generation[src] ?? 0),
+            borderColor:     SOURCE_META[src]?.color ?? "#888",
+            backgroundColor: (SOURCE_META[src]?.color ?? "#888") + "22",
+            fill: true, tension: 0.4, pointRadius: 3,
+        }));
+        if (trendChartInst) trendChartInst.destroy();
+        trendChartInst = new Chart(document.getElementById("trendChart"), {
+            type: "line",
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                interaction: { mode: "index", intersect: false },
+                plugins: { legend: { position: "top", labels: { color: "#adb5bd" } } },
+                scales: {
+                    x: { ticks: { color: "#adb5bd" }, grid: { color: "#343a40" } },
+                    y: { ticks: { color: "#adb5bd", callback: v => fmt(v) }, grid: { color: "#343a40" } },
+                },
+            },
+        });
+    } catch (err) { console.error("Trend load failed:", err); }
+}
+
+async function loadRegional() {
+    const region = document.getElementById("region-filter").value;
+    const tbody  = document.getElementById("regional-tbody");
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center"><div class="spinner-border spinner-border-sm text-secondary"></div></td></tr>`;
+    try {
+        const res  = await fetch(`/api/renewable/regional?region=${region}`);
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        let html = "";
+        for (const [reg, info] of Object.entries(json.data.data)) {
+            const s = info.sources;
+            const shareClass = info.share_of_grid_pct > 30 ? "text-success fw-bold"
+                             : info.share_of_grid_pct > 15 ? "text-warning" : "text-secondary";
+            html += `
+            <tr>
+                <td class="text-capitalize fw-semibold">${reg}</td>
+                <td>${fmt(s.solar   ?? 0)}</td>
+                <td>${fmt(s.wind    ?? 0)}</td>
+                <td>${fmt(s.hydro   ?? 0)}</td>
+                <td>${fmt(s.biomass ?? 0)}</td>
+                <td>${fmt(s.others  ?? 0)}</td>
+                <td class="fw-bold">${fmt(info.total_mw)}</td>
+                <td class="${shareClass}">${pct(info.share_of_grid_pct)}</td>
+            </tr>`;
+        }
+        tbody.innerHTML = html || `<tr><td colspan="8" class="text-center text-secondary">No data found</td></tr>`;
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">${err.message}</td></tr>`;
+    }
+}
+
+function loadAll() {
+    loadSummary();
+    loadTrends();
+    loadRegional();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadAll();
+    setInterval(loadAll, 5 * 60 * 1000);
+});
+</script>
+{% endblock %}
